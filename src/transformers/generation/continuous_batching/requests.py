@@ -15,7 +15,7 @@
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 
@@ -101,7 +101,7 @@ class RequestState:
         status (RequestStatus): The status of the request: can be one of PENDING, PREFILLING, PREFILLING_SPLIT,
                                 SPLIT_PENDING_REMAINDER, DECODING, FINISHED, FAILED
         max_new_tokens (int): The maximum number of new tokens to generate.
-        eos_token_id (int): The ID of the end-of-sequence token.
+        eos_token_id (Union[int, list[int]]): The ID(s) of the end-of-sequence token(s).
         created_time (float): The time the request was created.
         error (Optional[str]): Any error message associated with the request. When None, has had no error yet.
     """
@@ -116,7 +116,7 @@ class RequestState:
     position_offset: int = 0  # Current position in the sequence for position_ids
     _status: RequestStatus = RequestStatus.PENDING  # Status of the request, hidden behind a property
     max_new_tokens: int = 20  # Maximum number of new tokens to generate
-    eos_token_id: int = -1  # ID of the end-of-sequence token
+    eos_token_id: Union[int, list[int]] = -1  # ID(s) of the end-of-sequence token(s)
     created_time: float = field(default_factory=time.time)  # Time the request was created
     error: Optional[str] = None  # Error message if the request failed
     lifespan: tuple[float, float] = (-1, -1)  # (time request was no longer pending, time request finished)
@@ -166,7 +166,11 @@ class RequestState:
         if self.status != RequestStatus.DECODING:
             return False
 
-        is_eos = token_id == self.eos_token_id and self.eos_token_id != -1
+        # Handle both single eos_token_id and list of eos_token_ids
+        if isinstance(self.eos_token_id, list):
+            is_eos = token_id in self.eos_token_id
+        else:
+            is_eos = token_id == self.eos_token_id and self.eos_token_id != -1
         is_max_len = self.generated_len() >= self.max_new_tokens
 
         # Only add the token if we're not finishing due to max length
