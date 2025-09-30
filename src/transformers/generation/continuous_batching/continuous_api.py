@@ -64,7 +64,7 @@ def build_attention_mask(
         # Apply sliding window mask if needed
         if sliding_window > 1:
             sliding_diagonal = seqlen_k - seqlen_q - sliding_window
-            masked = torch.maximum(masked, torch.tril(minus_inf, diagonal=sliding_diagonal))
+            masked = torch.minimum(masked, torch.tril(minus_inf, diagonal=sliding_diagonal))
         # Replace in attention mask
         attention_mask[..., query_range, key_range] = masked
 
